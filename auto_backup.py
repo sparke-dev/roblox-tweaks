@@ -17,10 +17,10 @@ class FastFlagManager(ctk.CTk):
         super().__init__()
 
         self.title("FastFlag Config Manager")
-        self.geometry("500x420")
+        self.geometry("500x500") # Made the window slightly taller for the text box
         self.resizable(False, False)
 
-        # Define Fonts (JetBrains Mono Nerd Font)
+        # Define Fonts
         self.title_font = ctk.CTkFont(family="JetBrainsMono Nerd Font", size=22, weight="bold")
         self.main_font = ctk.CTkFont(family="JetBrainsMono Nerd Font", size=14)
         self.small_font = ctk.CTkFont(family="JetBrainsMono Nerd Font", size=12)
@@ -43,7 +43,14 @@ class FastFlagManager(ctk.CTk):
 
         self.file_var = ctk.StringVar(value="Select File...")
         self.file_dropdown = ctk.CTkOptionMenu(self, variable=self.file_var, font=self.main_font)
-        self.file_dropdown.pack(fill="x", padx=40, pady=(0, 25))
+        self.file_dropdown.pack(fill="x", padx=40, pady=(0, 15))
+
+        # --- NEW: Custom Commit Description ---
+        self.desc_label = ctk.CTkLabel(self, text="Commit Description (Optional):", font=self.main_font)
+        self.desc_label.pack(anchor="w", padx=40)
+        
+        self.desc_entry = ctk.CTkEntry(self, placeholder_text="e.g., added new hitbox flags...", font=self.main_font)
+        self.desc_entry.pack(fill="x", padx=40, pady=(0, 25))
 
         # Push Button
         self.push_btn = ctk.CTkButton(self, text="Apply & Push to GitHub", command=self.apply_and_push, font=self.main_font, height=40)
@@ -84,15 +91,15 @@ class FastFlagManager(ctk.CTk):
             self.file_var.set("No files found")
 
     def apply_and_push(self):
-        """Copies the selected folder and preset, then pushes everything to GitHub."""
+        """Copies folders, applies config, grabs description, and pushes."""
         selected_folder = self.folder_var.get()
         selected_file = self.file_var.get()
+        custom_desc = self.desc_entry.get().strip() # Get the text from the entry box
 
         if "No " in selected_folder or "No " in selected_file:
             self.status_label.configure(text="Error: Invalid selection.", text_color="#ff4c4c")
             return
 
-        # Define all paths
         source_file_path = os.path.join(FLAGS_BASE_DIR, selected_folder, selected_file)
         source_folder_path = os.path.join(FLAGS_BASE_DIR, selected_folder)
         repo_folder_path = os.path.join(REPO_DIR, selected_folder)
@@ -101,27 +108,33 @@ class FastFlagManager(ctk.CTk):
             # 1. Update the active client_settings.json
             shutil.copy(source_file_path, DEST_FILE)
             
-            # 2. Copy the entire folder (e.g. 'tsb flags') into the GitHub repo
+            # 2. Copy the entire folder
             if os.path.exists(repo_folder_path):
-                shutil.rmtree(repo_folder_path) # Remove old backup to keep it clean
+                shutil.rmtree(repo_folder_path)
             shutil.copytree(source_folder_path, repo_folder_path)
 
-            self.status_label.configure(text=f"Loaded {selected_file} & backing up folder...", text_color="white")
+            self.status_label.configure(text=f"Loaded {selected_file} & backing up...", text_color="white")
             self.update() 
 
             # 3. Git Operations
             os.chdir(REPO_DIR)
-            
-            # Use 'git add .' to stage EVERYTHING (the whole folder + client_settings.json)
             subprocess.run(["git", "add", "."], check=True)
             
             status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
             
             if status.stdout.strip():
-                commit_msg = f"auto: applied {selected_file} and backed up {selected_folder} folder"
+                # Check if you typed a custom description
+                if custom_desc:
+                    commit_msg = f"{selected_file}: {custom_desc}"
+                else:
+                    # Default message if you leave the box blank
+                    commit_msg = f"auto: applied {selected_file} and backed up {selected_folder}"
+                    
                 subprocess.run(["git", "commit", "-m", commit_msg], check=True)
                 subprocess.run(["git", "push", "origin", "main"], check=True)
-                self.status_label.configure(text="✅ Successfully pushed folder & config!", text_color="#4cff4c")
+                
+                self.status_label.configure(text="✅ Successfully pushed with description!", text_color="#4cff4c")
+                self.desc_entry.delete(0, 'end') # Clears the box for next time
             else:
                 self.status_label.configure(text="⚠️ GitHub is already up to date.", text_color="#ffcc00")
 
