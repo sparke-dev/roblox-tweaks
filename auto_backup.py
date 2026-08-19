@@ -84,7 +84,7 @@ class FastFlagManager(ctk.CTk):
             self.file_var.set("No files found")
 
     def apply_and_push(self):
-        """Copies the selected preset and pushes to GitHub."""
+        """Copies the selected folder and preset, then pushes everything to GitHub."""
         selected_folder = self.folder_var.get()
         selected_file = self.file_var.get()
 
@@ -92,25 +92,38 @@ class FastFlagManager(ctk.CTk):
             self.status_label.configure(text="Error: Invalid selection.", text_color="#ff4c4c")
             return
 
-        source_path = os.path.join(FLAGS_BASE_DIR, selected_folder, selected_file)
+        # Define all paths
+        source_file_path = os.path.join(FLAGS_BASE_DIR, selected_folder, selected_file)
+        source_folder_path = os.path.join(FLAGS_BASE_DIR, selected_folder)
+        repo_folder_path = os.path.join(REPO_DIR, selected_folder)
 
         try:
-            shutil.copy(source_path, DEST_FILE)
-            self.status_label.configure(text=f"Loaded {selected_file}...", text_color="white")
+            # 1. Update the active client_settings.json
+            shutil.copy(source_file_path, DEST_FILE)
+            
+            # 2. Copy the entire folder (e.g. 'tsb flags') into the GitHub repo
+            if os.path.exists(repo_folder_path):
+                shutil.rmtree(repo_folder_path) # Remove old backup to keep it clean
+            shutil.copytree(source_folder_path, repo_folder_path)
+
+            self.status_label.configure(text=f"Loaded {selected_file} & backing up folder...", text_color="white")
             self.update() 
 
+            # 3. Git Operations
             os.chdir(REPO_DIR)
-            subprocess.run(["git", "add", "client_settings.json"], check=True)
+            
+            # Use 'git add .' to stage EVERYTHING (the whole folder + client_settings.json)
+            subprocess.run(["git", "add", "."], check=True)
             
             status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
             
             if status.stdout.strip():
-                commit_msg = f"auto: applied {selected_file} from {selected_folder}"
+                commit_msg = f"auto: applied {selected_file} and backed up {selected_folder} folder"
                 subprocess.run(["git", "commit", "-m", commit_msg], check=True)
                 subprocess.run(["git", "push", "origin", "main"], check=True)
-                self.status_label.configure(text="✅ Successfully pushed to GitHub!", text_color="#4cff4c")
+                self.status_label.configure(text="✅ Successfully pushed folder & config!", text_color="#4cff4c")
             else:
-                self.status_label.configure(text="⚠️ Preset is already active on GitHub.", text_color="#ffcc00")
+                self.status_label.configure(text="⚠️ GitHub is already up to date.", text_color="#ffcc00")
 
         except Exception as e:
             self.status_label.configure(text=f"Error: {str(e)}", text_color="#ff4c4c")
