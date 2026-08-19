@@ -1,0 +1,13 @@
+{
+  "DFIntTextureQualityOverride": "0",
+  "DFFlagTextureQualityOverrideEnabled": "True",
+  "FIntDebugTextureManagerSkipMips": "8",
+  "FIntTerrainArraySliceSize": "4",
+  "FFlagDebugDisablePostFx": "True",
+  "FFlagDisablePostFx": "True",
+  "FFlagDebugRenderForceTechnologyV2": "True",
+  "FIntDebugForceLevelOfDetail": "0",
+  "FFlagGraphicsGlyphCacheTexture": "True",
+  "DFIntMaxFrameBufferSize": "4",
+  "DFIntTaskSchedulerTargetFps": "999"
+}
